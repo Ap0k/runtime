@@ -1155,7 +1155,11 @@ GenTree* Lowering::NewPutArg(GenTreeCall* call, GenTree* arg, fgArgTabEntry* inf
 #if defined(FEATURE_SIMD) && defined(FEATURE_PUT_STRUCT_ARG_STK)
                 if (type == TYP_SIMD12)
                 {
+#if !defined(TARGET_64BIT) || defined(OSX_ARM64_ABI)
                     assert(info->GetByteSize() == 12);
+#else  // TARGET_64BIT && !OSX_ARM64_ABI
+                    assert(info->GetByteSize() == 16);
+#endif // FEATURE_SIMD && FEATURE_PUT_STRUCT_ARG_STK
                 }
                 else
 #endif // defined(FEATURE_SIMD) && defined(FEATURE_PUT_STRUCT_ARG_STK)
@@ -3880,8 +3884,9 @@ GenTree* Lowering::CreateReturnTrapSeq()
 
     // The only thing to do here is build up the expression that evaluates 'g_TrapReturningThreads'.
 
-    void* pAddrOfCaptureThreadGlobal = nullptr;
-    LONG* addrOfCaptureThreadGlobal = comp->info.compCompHnd->getAddrOfCaptureThreadGlobal(&pAddrOfCaptureThreadGlobal);
+    void*    pAddrOfCaptureThreadGlobal = nullptr;
+    int32_t* addrOfCaptureThreadGlobal =
+        comp->info.compCompHnd->getAddrOfCaptureThreadGlobal(&pAddrOfCaptureThreadGlobal);
 
     GenTree* testTree;
     if (addrOfCaptureThreadGlobal != nullptr)
