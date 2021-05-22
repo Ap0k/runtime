@@ -451,6 +451,7 @@ class HelperCallProperties
 private:
     bool m_isPure[CORINFO_HELP_COUNT];
     bool m_noThrow[CORINFO_HELP_COUNT];
+    bool m_alwaysThrow[CORINFO_HELP_COUNT];
     bool m_nonNullReturn[CORINFO_HELP_COUNT];
     bool m_isAllocator[CORINFO_HELP_COUNT];
     bool m_mutatesHeap[CORINFO_HELP_COUNT];
@@ -476,6 +477,13 @@ public:
         assert(helperId > CORINFO_HELP_UNDEF);
         assert(helperId < CORINFO_HELP_COUNT);
         return m_noThrow[helperId];
+    }
+
+    bool AlwaysThrow(CorInfoHelpFunc helperId)
+    {
+        assert(helperId > CORINFO_HELP_UNDEF);
+        assert(helperId < CORINFO_HELP_COUNT);
+        return m_alwaysThrow[helperId];
     }
 
     bool NonNullReturn(CorInfoHelpFunc helperId)
@@ -748,14 +756,21 @@ private:
 
 namespace MagicDivide
 {
-uint32_t GetUnsigned32Magic(uint32_t d, bool* add /*out*/, int* shift /*out*/);
+uint32_t GetUnsigned32Magic(uint32_t d, bool* increment /*out*/, int* preShift /*out*/, int* postShift /*out*/);
 #ifdef TARGET_64BIT
-uint64_t GetUnsigned64Magic(uint64_t d, bool* add /*out*/, int* shift /*out*/);
+uint64_t GetUnsigned64Magic(
+    uint64_t d, bool* increment /*out*/, int* preShift /*out*/, int* postShift /*out*/, unsigned bits = 64);
 #endif
 int32_t GetSigned32Magic(int32_t d, int* shift /*out*/);
 #ifdef TARGET_64BIT
 int64_t GetSigned64Magic(int64_t d, int* shift /*out*/);
 #endif
 }
+
+//
+// Profiling helpers
+//
+
+double CachedCyclesPerSecond();
 
 #endif // _UTILS_H_

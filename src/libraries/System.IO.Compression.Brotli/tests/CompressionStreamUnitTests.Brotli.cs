@@ -58,6 +58,7 @@ namespace System.IO.Compression
         }
 
         [Fact]
+        [ActiveIssue("https://github.com/dotnet/runtime/issues/36884", TestPlatforms.iOS | TestPlatforms.tvOS | TestPlatforms.MacCatalyst)]
         public void GetMaxCompressedSize()
         {
             string uncompressedFile = UncompressedTestFile();
@@ -71,6 +72,7 @@ namespace System.IO.Compression
         /// Test to ensure that when given an empty Destination span, the decoder will consume no input and write no output.
         /// </summary>
         [Fact]
+        [ActiveIssue("https://github.com/dotnet/runtime/issues/36884", TestPlatforms.iOS | TestPlatforms.tvOS | TestPlatforms.MacCatalyst)]
         public void Decompress_WithEmptyDestination()
         {
             string testFile = UncompressedTestFile();
@@ -114,6 +116,7 @@ namespace System.IO.Compression
         /// Test to ensure that when given an empty Destination span, the encoder consume no input and write no output
         /// </summary>
         [Fact]
+        [ActiveIssue("https://github.com/dotnet/runtime/issues/36884", TestPlatforms.iOS | TestPlatforms.tvOS | TestPlatforms.MacCatalyst)]
         public void Compress_WithEmptyDestination()
         {
             string testFile = UncompressedTestFile();
@@ -177,7 +180,7 @@ namespace System.IO.Compression
             for (int i = 0; i < totalSize; i += chunkSize)
             {
                 byte[] uncompressed = new byte[chunkSize];
-                new Random().NextBytes(uncompressed);
+                Random.Shared.NextBytes(uncompressed);
                 byte[] compressed = new byte[BrotliEncoder.GetMaxCompressedLength(chunkSize)];
                 byte[] decompressed = new byte[chunkSize];
                 var uncompressedSpan = new ReadOnlySpan<byte>(uncompressed);

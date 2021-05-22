@@ -16,6 +16,9 @@
       <method name="GetDelegateContinuationsForDebugger" />
       <method name="SetNotificationForWaitCompletion" />
     </type>
+    <type fullname="System.Threading.Timer">
+      <property name="AllTimers" />
+    </type>
     <type fullname="System.Threading.ThreadPool">
       <method name="GetQueuedWorkItemsForDebugger" />
       <method name="GetGloballyQueuedWorkItemsForDebugger" />
@@ -51,6 +54,11 @@
     <type fullname="System.Threading.Tasks.Task">
       <!-- Methods is used by VS Tasks Window. -->
       <method name="GetActiveTaskFromId" />
+    </type>
+
+     <!-- methods used by hot reload --> 
+    <type fullname="System.Reflection.Metadata.AssemblyExtensions">
+      <method name="GetApplyUpdateCapabilities" />
     </type>
   </assembly>
 </linker>

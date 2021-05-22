@@ -16,7 +16,6 @@ namespace System.Net.Sockets.Tests
     public class UnixDomainSocketTest
     {
         private readonly ITestOutputHelper _log;
-        private static Random _random = new Random();
 
         public UnixDomainSocketTest(ITestOutputHelper output)
         {
@@ -30,6 +29,7 @@ namespace System.Net.Sockets.Tests
         }
 
         [ConditionalFact(nameof(PlatformSupportsUnixDomainSockets))]
+        [ActiveIssue("https://github.com/dotnet/runtime/issues/51392", TestPlatforms.iOS | TestPlatforms.tvOS | TestPlatforms.MacCatalyst)]
         public async Task Socket_ConnectAsyncUnixDomainSocketEndPoint_Success()
         {
             string path = null;
@@ -85,6 +85,7 @@ namespace System.Net.Sockets.Tests
         }
 
         [ConditionalFact(nameof(PlatformSupportsUnixDomainSockets))]
+        [ActiveIssue("https://github.com/dotnet/runtime/issues/51392", TestPlatforms.iOS | TestPlatforms.tvOS | TestPlatforms.MacCatalyst)]
         public async Task Socket_ConnectAsyncUnixDomainSocketEndPoint_NotServer()
         {
             string path = GetRandomNonExistingFilePath();
@@ -107,7 +108,7 @@ namespace System.Net.Sockets.Tests
                     }
 
                     Assert.Equal(
-                        RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? SocketError.ConnectionRefused : SocketError.AddressNotAvailable,
+                        OperatingSystem.IsWindows() ? SocketError.ConnectionRefused : SocketError.AddressNotAvailable,
                         args.SocketError);
                 }
             }
@@ -119,6 +120,7 @@ namespace System.Net.Sockets.Tests
         }
 
         [ConditionalFact(nameof(PlatformSupportsUnixDomainSockets))]
+        [ActiveIssue("https://github.com/dotnet/runtime/issues/51392", TestPlatforms.iOS | TestPlatforms.tvOS | TestPlatforms.MacCatalyst)]
         public void Socket_SendReceive_Success()
         {
             string path = GetRandomNonExistingFilePath();
@@ -156,6 +158,7 @@ namespace System.Net.Sockets.Tests
         }
 
         [ConditionalFact(nameof(PlatformSupportsUnixDomainSockets))]
+        [ActiveIssue("https://github.com/dotnet/runtime/issues/51392", TestPlatforms.iOS | TestPlatforms.tvOS | TestPlatforms.MacCatalyst)]
         public void Socket_SendReceive_Clone_Success()
         {
             string path = GetRandomNonExistingFilePath();
@@ -206,6 +209,7 @@ namespace System.Net.Sockets.Tests
         }
 
         [ConditionalFact(nameof(PlatformSupportsUnixDomainSockets))]
+        [ActiveIssue("https://github.com/dotnet/runtime/issues/51392", TestPlatforms.iOS | TestPlatforms.tvOS | TestPlatforms.MacCatalyst)]
         public async Task Socket_SendReceiveAsync_Success()
         {
             string path = GetRandomNonExistingFilePath();
@@ -248,10 +252,11 @@ namespace System.Net.Sockets.Tests
         [InlineData(500, 18, 21)]
         [InlineData(500, 21, 18)]
         [InlineData(5, 128000, 64000)]
+        [ActiveIssue("https://github.com/dotnet/runtime/issues/51392", TestPlatforms.iOS | TestPlatforms.tvOS | TestPlatforms.MacCatalyst)]
         public async Task Socket_SendReceiveAsync_PropagateToStream_Success(int iterations, int writeBufferSize, int readBufferSize)
         {
             var writeBuffer = new byte[writeBufferSize * iterations];
-            new Random().NextBytes(writeBuffer);
+            Random.Shared.NextBytes(writeBuffer);
             var readData = new MemoryStream();
 
             string path = GetRandomNonExistingFilePath();
@@ -296,7 +301,7 @@ namespace System.Net.Sockets.Tests
                 }
 
                 Assert.Equal(writeBuffer.Length, readData.Length);
-                Assert.Equal(writeBuffer, readData.ToArray());
+                AssertExtensions.SequenceEqual(writeBuffer, readData.ToArray());
             }
             finally
             {
@@ -309,6 +314,7 @@ namespace System.Net.Sockets.Tests
         [ActiveIssue("https://github.com/dotnet/runtime/issues/26189", TestPlatforms.Windows)]
         [InlineData(false)]
         [InlineData(true)]
+        [ActiveIssue("https://github.com/dotnet/runtime/issues/51392", TestPlatforms.iOS | TestPlatforms.tvOS | TestPlatforms.MacCatalyst)]
         public async Task ConcurrentSendReceive(bool forceNonBlocking)
         {
             using (Socket server = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified))
@@ -317,7 +323,7 @@ namespace System.Net.Sockets.Tests
                 const int Iters = 25;
                 byte[] sendData = new byte[Iters];
                 byte[] receiveData = new byte[sendData.Length];
-                new Random().NextBytes(sendData);
+                Random.Shared.NextBytes(sendData);
 
                 string path = GetRandomNonExistingFilePath();
 
@@ -346,11 +352,12 @@ namespace System.Net.Sockets.Tests
                 }
                 await TestSettings.WhenAllOrAnyFailedWithTimeout(writes.Concat(reads).ToArray());
 
-                Assert.Equal(sendData.OrderBy(i => i), receiveData.OrderBy(i => i));
+                AssertExtensions.SequenceEqual(sendData.OrderBy(i => i).ToArray(), receiveData.OrderBy(i => i).ToArray());
             }
         }
 
         [ConditionalFact(nameof(PlatformSupportsUnixDomainSockets))]
+        [ActiveIssue("https://github.com/dotnet/runtime/issues/51392", TestPlatforms.iOS | TestPlatforms.tvOS | TestPlatforms.MacCatalyst)]
         public async Task ConcurrentSendReceiveAsync()
         {
             using (Socket server = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified))
@@ -359,7 +366,7 @@ namespace System.Net.Sockets.Tests
                 const int Iters = 2048;
                 byte[] sendData = new byte[Iters];
                 byte[] receiveData = new byte[sendData.Length];
-                new Random().NextBytes(sendData);
+                Random.Shared.NextBytes(sendData);
 
                 string path = GetRandomNonExistingFilePath();
 
@@ -384,7 +391,7 @@ namespace System.Net.Sockets.Tests
 
                 await TestSettings.WhenAllOrAnyFailedWithTimeout(writes.Concat(reads).ToArray());
 
-                Assert.Equal(sendData, receiveData);
+                AssertExtensions.SequenceEqual(sendData, receiveData);
             }
         }
 
@@ -405,6 +412,7 @@ namespace System.Net.Sockets.Tests
         [ConditionalTheory(nameof(PlatformSupportsUnixDomainSockets))]
         [InlineData(false)]
         [InlineData(true)]
+        [ActiveIssue("https://github.com/dotnet/runtime/issues/51392", TestPlatforms.iOS | TestPlatforms.tvOS | TestPlatforms.MacCatalyst)]
         public void UnixDomainSocketEndPoint_RemoteEndPointEqualsBindAddress(bool abstractAddress)
         {
             string serverAddress;
@@ -413,7 +421,7 @@ namespace System.Net.Sockets.Tests
             if (abstractAddress)
             {
                 // abstract socket addresses are a Linux feature.
-                if (!RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                if (!OperatingSystem.IsLinux())
                 {
                     return;
                 }
@@ -464,6 +472,7 @@ namespace System.Net.Sockets.Tests
 
         [ConditionalFact(nameof(PlatformSupportsUnixDomainSockets))]
         [PlatformSpecific(TestPlatforms.AnyUnix & ~TestPlatforms.Linux)] // Don't support abstract socket addresses.
+        [ActiveIssue("https://github.com/dotnet/runtime/issues/50568", TestPlatforms.Android)]
         public void UnixDomainSocketEndPoint_UsingAbstractSocketAddressOnUnsupported_Throws()
         {
             // An abstract socket address starts with a zero byte.
@@ -498,7 +507,7 @@ namespace System.Net.Sockets.Tests
             do
             {
                 // get random name and append random number of characters to get variable name length.
-                result = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + new string('A', _random.Next(1, 32)));
+                result = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + new string('A', Random.Shared.Next(1, 32)));
             }
             while (File.Exists(result));
 
@@ -509,7 +518,7 @@ namespace System.Net.Sockets.Tests
         {
             get
             {
-                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                if (OperatingSystem.IsWindows())
                 {
                     try
                     {

@@ -1,9 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using System;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
+using System.Collections.ObjectModel;
 
 namespace System.Diagnostics.Tracing
 {
@@ -27,6 +25,7 @@ namespace System.Diagnostics.Tracing
         // as you can't make a constructor partial.
         private NativeRuntimeEventSource(int _) { }
 
+#if FEATURE_PERFTRACING
         /// <summary>
         /// Dispatch a single event with the specified event ID and payload.
         /// </summary>
@@ -54,13 +53,16 @@ namespace System.Diagnostics.Tracing
 
             // Decode the payload.
             object[] decodedPayloadFields = EventPipePayloadDecoder.DecodePayload(ref m_eventData[eventID], payload);
-            WriteToAllListeners(
-                eventId: (int)eventID,
-                osThreadId: &osThreadID,
-                timeStamp: &timeStamp,
-                activityID: &activityId,
-                childActivityID: &childActivityId,
-                args: decodedPayloadFields);
+
+            var eventCallbackArgs = new EventWrittenEventArgs(this, (int)eventID, &activityId, &childActivityId)
+            {
+                OSThreadId = (int)osThreadID,
+                TimeStamp = timeStamp,
+                Payload = new ReadOnlyCollection<object?>(decodedPayloadFields)
+            };
+
+            DispatchToAllListeners(eventCallbackArgs);
         }
+#endif // FEATURE_PERFTRACING
     }
 }

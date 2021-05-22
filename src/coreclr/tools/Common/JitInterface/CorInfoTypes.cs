@@ -313,6 +313,25 @@ namespace Internal.JitInterface
         public int Other;
     }
 
+    [StructLayout(LayoutKind.Sequential)]
+    public unsafe struct AllocMemArgs
+    {
+        // Input arguments
+        public uint hotCodeSize;
+        public uint coldCodeSize;
+        public uint roDataSize;
+        public uint xcptnsCount;
+        public CorJitAllocMemFlag flag;
+
+        // Output arguments
+        public void* hotCodeBlock;
+        public void* hotCodeBlockRW;
+        public void* coldCodeBlock;
+        public void* coldCodeBlockRW;
+        public void* roDataBlock;
+        public void* roDataBlockRW;
+    }
+
     // Flags computed by a runtime compiler
     public enum CorInfoMethodRuntimeFlags
     {
@@ -357,8 +376,11 @@ namespace Internal.JitInterface
         C,
         Stdcall,
         Thiscall,
-        Fastcall
+        Fastcall,
         // New calling conventions supported with the extensible calling convention encoding go here.
+        CMemberFunction,
+        StdcallMemberFunction,
+        FastcallMemberFunction
     }
 
     public enum CORINFO_CALLINFO_FLAGS
@@ -406,22 +428,14 @@ namespace Internal.JitInterface
 
     public enum CorInfoIntrinsics
     {
-        CORINFO_INTRINSIC_GetChar,              // fetch character out of string
-        CORINFO_INTRINSIC_Array_GetDimLength,   // Get number of elements in a given dimension of an array
         CORINFO_INTRINSIC_Array_Get,            // Get the value of an element in an array
         CORINFO_INTRINSIC_Array_Address,        // Get the address of an element in an array
         CORINFO_INTRINSIC_Array_Set,            // Set the value of an element in an array
-        CORINFO_INTRINSIC_StringGetChar,        // fetch character out of string
-        CORINFO_INTRINSIC_StringLength,         // get the length
         CORINFO_INTRINSIC_InitializeArray,      // initialize an array from static data
-        CORINFO_INTRINSIC_GetTypeFromHandle,
         CORINFO_INTRINSIC_RTH_GetValueInternal,
-        CORINFO_INTRINSIC_TypeEQ,
-        CORINFO_INTRINSIC_TypeNEQ,
         CORINFO_INTRINSIC_Object_GetType,
         CORINFO_INTRINSIC_StubHelpers_GetStubContext,
         CORINFO_INTRINSIC_StubHelpers_GetStubContextAddr,
-        CORINFO_INTRINSIC_StubHelpers_GetNDirectTarget,
         CORINFO_INTRINSIC_StubHelpers_NextCallReturnAddress,
         CORINFO_INTRINSIC_InterlockedAdd32,
         CORINFO_INTRINSIC_InterlockedAdd64,
@@ -435,8 +449,6 @@ namespace Internal.JitInterface
         CORINFO_INTRINSIC_MemoryBarrierLoad,
         CORINFO_INTRINSIC_ByReference_Ctor,
         CORINFO_INTRINSIC_ByReference_Value,
-        CORINFO_INTRINSIC_Span_GetItem,
-        CORINFO_INTRINSIC_ReadOnlySpan_GetItem,
         CORINFO_INTRINSIC_GetRawHandle,
 
         CORINFO_INTRINSIC_Count,
@@ -1266,6 +1278,9 @@ namespace Internal.JitInterface
 
         // token comes from CEE_LDVIRTFTN
         CORINFO_TOKENKIND_Ldvirtftn = 0x400 | CORINFO_TOKENKIND_Method,
+
+        // token comes from devirtualizing a method
+        CORINFO_TOKENKIND_DevirtualizedMethod = 0x800 | CORINFO_TOKENKIND_Method,
     };
 
     // These are error codes returned by CompileMethod
@@ -1334,6 +1349,7 @@ namespace Internal.JitInterface
         CORJIT_FLAG_TIER1 = 40, // This is the final tier (for now) for tiered compilation which should generate high quality code
         CORJIT_FLAG_RELATIVE_CODE_RELOCS = 41, // JIT should generate PC-relative address computations instead of EE relocation records
         CORJIT_FLAG_NO_INLINING = 42, // JIT should not inline any called method into this method
+        CORJIT_FLAG_SOFTFP_ABI = 43, // On ARM should enable armel calling convention
     }
 
     public struct CORJIT_FLAGS

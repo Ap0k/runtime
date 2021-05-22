@@ -114,11 +114,13 @@ namespace System.Runtime.CompilerServices.Tests
             Assert.Equal((LoadHint)(-2), attr2.LoadHint);
         }
 
+#pragma warning disable SYSLIB0015 // Obsolete: DisablePrivateReflectionAttribute
         [Fact]
         public static void DisablePrivateReflectionAttributeTests()
         {
             new DisablePrivateReflectionAttribute();
         }
+#pragma warning restore SYSLIB0015 // Obsolete: DisablePrivateReflectionAttribute
 
         [Fact]
         public static void DiscardableAttributeTests()
@@ -231,11 +233,13 @@ namespace System.Runtime.CompilerServices.Tests
             new StringFreezingAttribute();
         }
 
+#pragma warning disable SYSLIB0025 // Obsolete: SuppressIldasmAttribute
         [Fact]
         public static void SuppressIldasmAttributeTests()
         {
             new SuppressIldasmAttribute();
         }
+#pragma warning restore SYSLIB0025 // Obsolete: SuppressIldasmAttribute
 
         [Fact]
         public static void TypeForwardedFromAttributeTests()

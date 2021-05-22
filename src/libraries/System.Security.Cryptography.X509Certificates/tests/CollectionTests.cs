@@ -6,6 +6,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using Test.Cryptography;
 using Xunit;
 
 namespace System.Security.Cryptography.X509Certificates.Tests
@@ -578,6 +579,7 @@ namespace System.Security.Cryptography.X509Certificates.Tests
         }
 
         [Fact]
+        [SkipOnPlatform(PlatformSupport.MobileAppleCrypto, "PKCS#7 import is not available")]
         public static void ImportStoreSavedAsPfxData()
         {
             using (var msCer = new X509Certificate2(TestData.MsCertificate))
@@ -612,7 +614,7 @@ namespace System.Security.Cryptography.X509Certificates.Tests
         {
             using (var pfxCer = new X509Certificate2(TestData.PfxData, TestData.PfxDataPassword, storageFlags))
             {
-                using (ImportedCollection ic = Cert.Import(Path.Combine("TestData", "My.pfx"), TestData.PfxDataPassword, storageFlags))
+                using (ImportedCollection ic = Cert.Import(TestFiles.PfxFile, TestData.PfxDataPassword, storageFlags))
                 {
                     X509Certificate2Collection cc2 = ic.Collection;
                     int count = cc2.Count;
@@ -697,6 +699,7 @@ namespace System.Security.Cryptography.X509Certificates.Tests
         }
 
         [Fact]
+        [SkipOnPlatform(PlatformSupport.MobileAppleCrypto, "PKCS#7 export is not available")]
         public static void ExportPkcs7()
         {
             TestExportStore(X509ContentType.Pkcs7);
@@ -781,7 +784,7 @@ namespace System.Security.Cryptography.X509Certificates.Tests
             var collection = new X509Certificate2Collection();
             try
             {
-                collection.Import(Path.Combine("TestData", "DummyTcpServer.pfx"), (string)null, Cert.EphemeralIfPossible);
+                collection.Import(TestFiles.DummyTcpServerPfxFile, (string)null, Cert.EphemeralIfPossible);
                 collection.Import(TestData.PfxData, TestData.PfxDataPassword, Cert.EphemeralIfPossible);
                 Assert.Equal(3, collection.Count);
             }
@@ -801,7 +804,7 @@ namespace System.Security.Cryptography.X509Certificates.Tests
 
             try
             {
-                collection.Import(Path.Combine("TestData", "DummyTcpServer.pfx"), (string)null, X509KeyStorageFlags.Exportable | Cert.EphemeralIfPossible);
+                collection.Import(TestFiles.DummyTcpServerPfxFile, (string)null, X509KeyStorageFlags.Exportable | Cert.EphemeralIfPossible);
                 collection.Import(TestData.PfxData, TestData.PfxDataPassword, X509KeyStorageFlags.Exportable | Cert.EphemeralIfPossible);
 
                 // Pre-condition, we have multiple private keys
