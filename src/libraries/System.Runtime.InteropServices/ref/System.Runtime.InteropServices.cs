@@ -760,6 +760,27 @@ namespace System.Runtime.InteropServices
         public static bool TryLoad(string libraryPath, out System.IntPtr handle) { throw null; }
         public static bool TryLoad(string libraryName, System.Reflection.Assembly assembly, System.Runtime.InteropServices.DllImportSearchPath? searchPath, out System.IntPtr handle) { throw null; }
     }
+    public static unsafe partial class NativeMemory
+    {
+        [System.CLSCompliantAttribute(false)]
+        public static void* AlignedAlloc(nuint byteCount, nuint alignment) { throw null; }
+        [System.CLSCompliantAttribute(false)]
+        public static void AlignedFree(void* ptr) { }
+        [System.CLSCompliantAttribute(false)]
+        public static void* AlignedRealloc(void* ptr, nuint byteCount, nuint alignment) { throw null; }
+        [System.CLSCompliantAttribute(false)]
+        public static void* Alloc(nuint byteCount) { throw null; }
+        [System.CLSCompliantAttribute(false)]
+        public static void* Alloc(nuint elementCount, nuint elementSize) { throw null; }
+        [System.CLSCompliantAttribute(false)]
+        public static void* AllocZeroed(nuint byteCount) { throw null; }
+        [System.CLSCompliantAttribute(false)]
+        public static void* AllocZeroed(nuint elementCount, nuint elementSize) { throw null; }
+        [System.CLSCompliantAttribute(false)]
+        public static void Free(void* ptr) { }
+        [System.CLSCompliantAttribute(false)]
+        public static void* Realloc(void* ptr, nuint byteCount) { throw null; }
+    }
     public readonly struct NFloat : IEquatable<NFloat>
     {
         public NFloat(float value) { }
@@ -774,6 +795,32 @@ namespace System.Runtime.InteropServices
     public sealed partial class OptionalAttribute : System.Attribute
     {
         public OptionalAttribute() { }
+    }
+    public enum PosixSignal
+    {
+        SIGTSTP = -10,
+        SIGTTOU = -9,
+        SIGTTIN = -8,
+        SIGWINCH = -7,
+        SIGCONT = -6,
+        SIGCHLD = -5,
+        SIGTERM = -4,
+        SIGQUIT = -3,
+        SIGINT = -2,
+        SIGHUP = -1,
+    }
+    public sealed partial class PosixSignalContext
+    {
+        public PosixSignalContext(System.Runtime.InteropServices.PosixSignal signal) { }
+        public bool Cancel { get { throw null; } set { } }
+        public System.Runtime.InteropServices.PosixSignal Signal { get { throw null; } }
+    }
+    public sealed partial class PosixSignalRegistration : System.IDisposable
+    {
+        internal PosixSignalRegistration() { }
+        public static System.Runtime.InteropServices.PosixSignalRegistration Create(System.Runtime.InteropServices.PosixSignal signal, System.Action<System.Runtime.InteropServices.PosixSignalContext> handler) { throw null; }
+        public void Dispose() { }
+        ~PosixSignalRegistration() { }
     }
     [System.AttributeUsageAttribute(System.AttributeTargets.Method, Inherited=false)]
     public sealed partial class PreserveSigAttribute : System.Attribute

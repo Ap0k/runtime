@@ -62,6 +62,7 @@
     <Compile Include="System\Net\Http\ReadOnlyMemoryContent.cs" />
     <Compile Include="System\Net\Http\RequestRetryType.cs" />
     <Compile Include="System\Net\Http\SocketsHttpHandler\HttpMessageHandlerStage.cs" />
+    <Compile Include="System\Net\Http\SocketsHttpHandler\RuntimeSettingParser.cs" />
     <Compile Include="System\Net\Http\StreamContent.cs" />
     <Compile Include="System\Net\Http\StreamToStreamCopy.cs" />
     <Compile Include="System\Net\Http\StringContent.cs" />
@@ -160,6 +161,7 @@
     <Compile Include="System\Net\Http\SocketsHttpHandler\Http2ProtocolException.cs" />
     <Compile Include="System\Net\Http\SocketsHttpHandler\Http2Stream.cs" />
     <Compile Include="System\Net\Http\SocketsHttpHandler\Http2StreamException.cs" />
+    <Compile Include="System\Net\Http\SocketsHttpHandler\Http2StreamWindowManager.cs" />
     <Compile Include="System\Net\Http\SocketsHttpHandler\Http3Connection.cs" />
     <Compile Include="System\Net\Http\SocketsHttpHandler\Http3ConnectionException.cs" />
     <Compile Include="System\Net\Http\SocketsHttpHandler\Http3ProtocolException.cs" />
@@ -495,6 +497,7 @@
   <ItemGroup>
     <Compile Include="System\Net\Http\DiagnosticsHandler.cs" />
     <Compile Include="System\Net\Http\DiagnosticsHandlerLoggingStrings.cs" />
+    <Compile Include="System\Net\Http\GlobalHttpSettings.cs" />
     <Compile Include="System\Net\Http\SocketsHttpHandler\SocketsHttpPlaintextStreamFilterContext.cs" />
     <Compile Include="$(CommonPath)System\Threading\Tasks\TaskCompletionSourceWithCancellation.cs"
              Link="Common\System\Threading\Tasks\TaskCompletionSourceWithCancellation.cs" />
@@ -616,6 +619,7 @@
              Link="Common\System\Net\Http\HttpHandlerDefaults.cs" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="$(LibrariesProjectRoot)System.Net.Quic\src\System.Net.Quic.csproj" />
     <ProjectReference Include="$(LibrariesProjectRoot)System.Security.Principal.Windows\src\System.Security.Principal.Windows.csproj" />
     <Reference Include="Microsoft.Win32.Primitives" />
     <Reference Include="System.Collections" />
@@ -629,7 +633,6 @@
     <Reference Include="System.Net.NameResolution" />
     <Reference Include="System.Net.NetworkInformation" />
     <Reference Include="System.Net.Primitives" />
-    <Reference Include="System.Net.Quic" />
     <Reference Include="System.Net.Security" />
     <Reference Include="System.Net.Sockets" />
     <Reference Include="System.Runtime" />

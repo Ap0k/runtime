@@ -2333,6 +2333,8 @@ class Compiler
     friend class ObjectAllocator;
     friend class LocalAddressVisitor;
     friend struct GenTree;
+    friend class MorphInitBlockHelper;
+    friend class MorphCopyBlockHelper;
 
 #ifdef FEATURE_HW_INTRINSICS
     friend struct HWIntrinsicInfo;
@@ -2850,8 +2852,8 @@ public:
                                                   GenTree*                ctxTree,
                                                   void*                   compileTimeHandle);
 
-    GenTree* gtNewLclvNode(unsigned lnum, var_types type DEBUGARG(IL_OFFSETX ILoffs = BAD_IL_OFFSET));
-    GenTree* gtNewLclLNode(unsigned lnum, var_types type DEBUGARG(IL_OFFSETX ILoffs = BAD_IL_OFFSET));
+    GenTreeLclVar* gtNewLclvNode(unsigned lnum, var_types type DEBUGARG(IL_OFFSETX ILoffs = BAD_IL_OFFSET));
+    GenTreeLclVar* gtNewLclLNode(unsigned lnum, var_types type DEBUGARG(IL_OFFSETX ILoffs = BAD_IL_OFFSET));
 
     GenTreeLclVar* gtNewLclVarAddrNode(unsigned lclNum, var_types type = TYP_I_IMPL);
     GenTreeLclFld* gtNewLclFldAddrNode(unsigned      lclNum,
@@ -3403,6 +3405,8 @@ public:
     void lvaSetVarAddrExposed(unsigned varNum);
     void lvaSetVarLiveInOutOfHandler(unsigned varNum);
     bool lvaVarDoNotEnregister(unsigned varNum);
+
+    void lvSetMinOptsDoNotEnreg();
 
     bool lvaEnregEHVars;
     bool lvaEnregMultiRegVars;
@@ -4018,8 +4022,6 @@ protected:
                             CORINFO_CALL_INFO* callInfo,
                             IL_OFFSET          rawILOffset);
 
-    CORINFO_CLASS_HANDLE impGetSpecialIntrinsicExactReturnType(CORINFO_METHOD_HANDLE specialIntrinsicHandle);
-
     bool impMethodInfo_hasRetBuffArg(CORINFO_METHOD_INFO* methInfo, CorInfoCallConvExtension callConv);
 
     GenTree* impFixupCallStructReturn(GenTreeCall* call, CORINFO_CLASS_HANDLE retClsHnd);
@@ -4067,7 +4069,6 @@ protected:
                               var_types             callType,
                               NamedIntrinsic        intrinsicName,
                               bool                  tailCall);
-    NamedIntrinsic lookupNamedIntrinsic(CORINFO_METHOD_HANDLE method);
     GenTree* impUnsupportedNamedIntrinsic(unsigned              helper,
                                           CORINFO_METHOD_HANDLE method,
                                           CORINFO_SIG_INFO*     sig,
@@ -4168,6 +4169,7 @@ public:
         CHECK_SPILL_NONE = -2
     };
 
+    NamedIntrinsic lookupNamedIntrinsic(CORINFO_METHOD_HANDLE method);
     void impBeginTreeList();
     void impEndTreeList(BasicBlock* block, Statement* firstStmt, Statement* lastStmt);
     void impEndTreeList(BasicBlock* block);
@@ -5833,6 +5835,12 @@ private:
     GenTree* fgRecognizeAndMorphBitwiseRotation(GenTree* tree);
     bool fgOperIsBitwiseRotationRoot(genTreeOps oper);
 
+#if !defined(TARGET_64BIT)
+    //                  Recognize and morph a long multiplication with 32 bit operands.
+    GenTreeOp* fgRecognizeAndMorphLongMul(GenTreeOp* mul);
+    GenTreeOp* fgMorphLongMul(GenTreeOp* mul);
+#endif
+
     //-------- Determine the order in which the trees will be evaluated -------
 
     unsigned fgTreeSeqNum;
@@ -6011,8 +6019,7 @@ private:
     GenTree* fgMorphInitBlock(GenTree* tree);
     GenTree* fgMorphPromoteLocalInitBlock(GenTreeLclVar* destLclNode, GenTree* initVal, unsigned blockSize);
     GenTree* fgMorphGetStructAddr(GenTree** pTree, CORINFO_CLASS_HANDLE clsHnd, bool isRValue = false);
-    GenTree* fgMorphBlkNode(GenTree* tree, bool isDest);
-    GenTree* fgMorphBlockOperand(GenTree* tree, var_types asgType, unsigned blockWidth, bool isDest);
+    GenTree* fgMorphBlockOperand(GenTree* tree, var_types asgType, unsigned blockWidth, bool isBlkReqd);
     GenTree* fgMorphCopyBlock(GenTree* tree);
     GenTree* fgMorphForRegisterFP(GenTree* tree);
     GenTree* fgMorphSmpOp(GenTree* tree, MorphAddrContext* mac = nullptr);
@@ -7484,9 +7491,14 @@ public:
 
 #ifdef DEBUG
     void optPrintAssertion(AssertionDsc* newAssertion, AssertionIndex assertionIndex = 0);
+    void optPrintAssertionIndex(AssertionIndex index);
+    void optPrintAssertionIndices(ASSERT_TP assertions);
     void optDebugCheckAssertion(AssertionDsc* assertion);
     void optDebugCheckAssertions(AssertionIndex AssertionIndex);
 #endif
+    static void optDumpAssertionIndices(const char* header, ASSERT_TP assertions, const char* footer = nullptr);
+    static void optDumpAssertionIndices(ASSERT_TP assertions, const char* footer = nullptr);
+
     void optAddCopies();
 #endif // ASSERTION_PROP
 
@@ -9211,10 +9223,14 @@ public:
 #endif
 
         // true if we should use the PINVOKE_{BEGIN,END} helpers instead of generating
-        // PInvoke transitions inline.
+        // PInvoke transitions inline. Normally used by R2R, but also used when generating a reverse pinvoke frame, as
+        // the current logic for frame setup initializes and pushes
+        // the InlinedCallFrame before performing the Reverse PInvoke transition, which is invalid (as frames cannot
+        // safely be pushed/popped while the thread is in a preemptive state.).
         bool ShouldUsePInvokeHelpers()
         {
-            return jitFlags->IsSet(JitFlags::JIT_FLAG_USE_PINVOKE_HELPERS);
+            return jitFlags->IsSet(JitFlags::JIT_FLAG_USE_PINVOKE_HELPERS) ||
+                   jitFlags->IsSet(JitFlags::JIT_FLAG_REVERSE_PINVOKE);
         }
 
         // true if we should use insert the REVERSE_PINVOKE_{ENTER,EXIT} helpers in the method
@@ -9771,9 +9787,19 @@ public:
 #endif // FEATURE_MULTIREG_RET
     }
 
+    bool compEnregLocals()
+    {
+        return ((opts.compFlags & CLFLG_REGVAR) != 0);
+    }
+
     bool compEnregStructLocals()
     {
         return (JitConfig.JitEnregStructLocals() != 0);
+    }
+
+    bool compObjectStackAllocation()
+    {
+        return (JitConfig.JitObjectStackAllocation() != 0);
     }
 
     // Returns true if the method returns a value in more than one return register,
@@ -9820,6 +9846,16 @@ public:
     bool compMethodRequiresPInvokeFrame()
     {
         return (info.compUnmanagedCallCountWithGCTransition > 0);
+    }
+
+    // Returns true if address-exposed user variables should be poisoned with a recognizable value
+    bool compShouldPoisonFrame()
+    {
+#ifdef FEATURE_ON_STACK_REPLACEMENT
+        if (opts.IsOSR())
+            return false;
+#endif
+        return !info.compInitMem && opts.compDbgCode;
     }
 
 #if defined(DEBUG)
@@ -9908,7 +9944,6 @@ public:
 // Bytes of padding between save-reg area and locals.
 #define VSQUIRK_STACK_PAD (2 * REGSIZE_BYTES)
     unsigned compVSQuirkStackPaddingNeeded;
-    bool     compQuirkForPPPflag;
 #endif
 
     unsigned compArgSize; // total size of arguments in bytes (including register args (lvIsRegArg))
@@ -10128,9 +10163,6 @@ protected:
     bool  compProfilerMethHndIndirected; // Whether compProfilerHandle is pointer to the handle or is an actual handle
 #endif
 
-#ifdef TARGET_AMD64
-    bool compQuirkForPPP(); // Check if this method should be Quirked for the PPP issue
-#endif
 public:
     // Assumes called as part of process shutdown; does any compiler-specific work associated with that.
     static void ProcessShutdownWork(ICorStaticInfo* statInfo);

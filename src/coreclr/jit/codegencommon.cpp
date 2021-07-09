@@ -122,9 +122,6 @@ CodeGen::CodeGen(Compiler* theCompiler) : CodeGenInterface(theCompiler)
 #ifdef TARGET_AMD64
     // This will be set before final frame layout.
     compiler->compVSQuirkStackPaddingNeeded = 0;
-
-    // Set to true if we perform the Quirk that fixes the PPP issue
-    compiler->compQuirkForPPPflag = false;
 #endif // TARGET_AMD64
 
     //  Initialize the IP-mapping logic.
@@ -7454,7 +7451,7 @@ void CodeGen::genFnProlog()
     // Establish the AMD64 frame pointer after the OS-reported prolog.
     if (doubleAlignOrFramePointerUsed())
     {
-        bool reportUnwindData = compiler->compLocallocUsed || compiler->opts.compDbgEnC;
+        const bool reportUnwindData = compiler->compLocallocUsed || compiler->opts.compDbgEnC;
         genEstablishFramePointer(compiler->codeGen->genSPtoFPdelta(), reportUnwindData);
     }
 #endif // TARGET_AMD64
@@ -8147,7 +8144,31 @@ void CodeGen::genFnEpilog(BasicBlock* block)
 
     /* Compute the size in bytes we've pushed/popped */
 
-    if (!doubleAlignOrFramePointerUsed())
+    bool removeEbpFrame = doubleAlignOrFramePointerUsed();
+
+#ifdef TARGET_AMD64
+    // We only remove the EBP frame using the frame pointer (using `lea rsp, [rbp + const]`)
+    // if we reported the frame pointer in the prolog. The Windows x64 unwinding ABI specifically
+    // disallows this `lea` form:
+    //
+    //    See https://docs.microsoft.com/en-us/cpp/build/prolog-and-epilog?view=msvc-160#epilog-code
+    //
+    //    "When a frame pointer is not used, the epilog must use add RSP,constant to deallocate the fixed part of the
+    //    stack. It may not use lea RSP,constant[RSP] instead. This restriction exists so the unwind code has fewer
+    //    patterns to recognize when searching for epilogs."
+    //
+    // Otherwise, we must use `add RSP, constant`, as stated. So, we need to use the same condition
+    // as genFnProlog() used in determining whether to report the frame pointer in the unwind data.
+    // This is a subset of the `doubleAlignOrFramePointerUsed()` cases.
+    //
+    if (removeEbpFrame)
+    {
+        const bool reportUnwindData = compiler->compLocallocUsed || compiler->opts.compDbgEnC;
+        removeEbpFrame              = removeEbpFrame && reportUnwindData;
+    }
+#endif // TARGET_AMD64
+
+    if (!removeEbpFrame)
     {
         // We have an ESP frame */
 
@@ -8176,6 +8197,15 @@ void CodeGen::genFnEpilog(BasicBlock* block)
         }
 
         genPopCalleeSavedRegisters();
+
+#ifdef TARGET_AMD64
+        // In the case where we have an RSP frame, and no frame pointer reported in the OS unwind info,
+        // but we do have a pushed frame pointer and established frame chain, we do need to pop RBP.
+        if (doubleAlignOrFramePointerUsed())
+        {
+            inst_RV(INS_pop, REG_EBP, TYP_I_IMPL);
+        }
+#endif // TARGET_AMD64
 
         // Extra OSR adjust to get to where RBP was saved by the original frame, and
         // restore RBP.
@@ -12495,3 +12525,65 @@ void CodeGenInterface::VariableLiveKeeper::dumpLvaVariableLiveRanges() const
 }
 #endif // DEBUG
 #endif // USING_VARIABLE_LIVE_RANGE
+
+//-----------------------------------------------------------------------------
+// genPoisonFrame: Generate code that places a recognizable value into address exposed variables.
+//
+// Remarks:
+//   This function emits code to poison address exposed non-zero-inited local variables. We expect this function
+//   to be called when emitting code for the scratch BB that comes right after the prolog.
+//   The variables are poisoned using 0xcdcdcdcd.
+void CodeGen::genPoisonFrame(regMaskTP regLiveIn)
+{
+    assert(compiler->compShouldPoisonFrame());
+    assert((regLiveIn & genRegMask(REG_SCRATCH)) == 0);
+
+    // The first time we need to poison something we will initialize a register to the largest immediate cccccccc that
+    // we can fit.
+    bool hasPoisonImm = false;
+    for (unsigned varNum = 0; varNum < compiler->info.compLocalsCount; varNum++)
+    {
+        LclVarDsc* varDsc = compiler->lvaGetDesc(varNum);
+        if (varDsc->lvIsParam || varDsc->lvMustInit || !varDsc->lvAddrExposed)
+        {
+            continue;
+        }
+
+        assert(varDsc->lvOnFrame);
+
+        if (!hasPoisonImm)
+        {
+#ifdef TARGET_64BIT
+            genSetRegToIcon(REG_SCRATCH, (ssize_t)0xcdcdcdcdcdcdcdcd, TYP_LONG);
+#else
+            genSetRegToIcon(REG_SCRATCH, (ssize_t)0xcdcdcdcd, TYP_INT);
+#endif
+            hasPoisonImm = true;
+        }
+
+// For 64-bit we check if the local is 8-byte aligned. For 32-bit, we assume everything is always 4-byte aligned.
+#ifdef TARGET_64BIT
+        bool fpBased;
+        int  addr = compiler->lvaFrameAddress((int)varNum, &fpBased);
+#else
+        int addr = 0;
+#endif
+        int size = (int)compiler->lvaLclSize(varNum);
+        int end  = addr + size;
+        for (int offs = addr; offs < end;)
+        {
+#ifdef TARGET_64BIT
+            if ((offs % 8) == 0 && end - offs >= 8)
+            {
+                GetEmitter()->emitIns_S_R(ins_Store(TYP_LONG), EA_8BYTE, REG_SCRATCH, (int)varNum, offs - addr);
+                offs += 8;
+                continue;
+            }
+#endif
+
+            assert((offs % 4) == 0 && end - offs >= 4);
+            GetEmitter()->emitIns_S_R(ins_Store(TYP_INT), EA_4BYTE, REG_SCRATCH, (int)varNum, offs - addr);
+            offs += 4;
+        }
+    }
+}
